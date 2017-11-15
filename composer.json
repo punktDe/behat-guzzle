@@ -1,0 +1,13 @@
+{
+    "name": "punktde/testing-api",
+    "description": "punkt.de package for testing apis with guzzle and behat",
+    "require": {
+        "guzzlehttp/guzzle": "^6.3",
+        "behat/behat": "^3.4"
+    },
+    "autoload": {
+        "psr-4": {
+            "PunktDe\\Testing\\Api": "Classes"
+        }
+    }
+}
