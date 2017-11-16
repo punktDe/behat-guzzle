@@ -31,6 +31,11 @@ class GuzzleTestingContext implements Context
     protected $lastResponse;
 
     /**
+     * @var string
+     */
+    protected $lastResponseBody;
+
+    /**
      * @param $baseUrl
      */
     public function __construct($baseUrl)
@@ -68,6 +73,8 @@ class GuzzleTestingContext implements Context
             // even if an HTTP 5xx/4xx error occurs, we record the response.
             $this->lastResponse = $serverException->getResponse();
         }
+
+        $this->lastResponseBody = $this->lastResponse->getBody()->getContents();
     }
 
     /**
@@ -82,6 +89,18 @@ class GuzzleTestingContext implements Context
             sprintf('HTTP status code for request was "%s", should not be 4xx', $responseHttpCode));
         Assert::assertNotEquals('5', $statusClass,
             sprintf('HTTP status code for request was "%s", should not be 5xx', $responseHttpCode));
+    }
+
+    /**
+     * @param string $needle
+     * @param string $ignoreCaseString
+     *
+     * @Then /^the result does not contain "(?P<needle>(?:[^"]|\\")*)"(?P<ignoreCaseString>(?: ignoring case))?$/
+     */
+    public function theResultDoesNotContain($needle, $ignoreCaseString = '') {
+        $ignoreCase = strlen($ignoreCaseString) > 0;
+
+        Assert::assertNotContains($needle, $this->lastResponseBody, '', $ignoreCase);
     }
 
 }
