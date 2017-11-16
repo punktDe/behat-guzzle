@@ -71,17 +71,6 @@ class GuzzleTestingContext implements Context
     }
 
     /**
-     * @Then the result should not show an exception
-     */
-    public function theResultShouldNotShowAnException()
-    {
-        $responseContent = $this->lastResponse->getBody()->getContents();
-
-        Assert::assertNotContains('exception', $responseContent, '', true);
-        Assert::assertNotContains('error', $responseContent, '', true);
-    }
-
-    /**
      * @Then the result status code is not an error code
      */
     public function theResultStatusCodeIsNotAnErrorCode()
