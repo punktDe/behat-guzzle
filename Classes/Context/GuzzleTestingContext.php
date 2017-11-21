@@ -10,6 +10,7 @@ use Behat\Behat\Context\Context;
 use GuzzleHttp\Client;
 use GuzzleHttp\Exception\BadResponseException;
 use GuzzleHttp\Psr7\Response;
+use Neos\Utility\Arrays;
 use PHPUnit\Framework\Assert;
 
 class GuzzleTestingContext implements Context
@@ -101,6 +102,28 @@ class GuzzleTestingContext implements Context
         $ignoreCase = strlen($ignoreCaseString) > 0;
 
         Assert::assertNotContains($needle, $this->lastResponseBody, '', $ignoreCase);
+    }
+
+    /**
+     * @Then the result should be valid json
+     */
+    public function theResultIsValidJson()
+    {
+        $data = json_decode($this->lastResponseBody, true);
+        Assert::assertNotFalse($data, 'API did not return a valid JSON-String.');
+    }
+
+    /**
+     * @then the result does not contain a field :field in the path :path
+     *
+     * @param string $field
+     * @param string $path
+     */
+    public function theResultDoesNotContainFieldInPath($field, $path) {
+        $responseArray = json_decode($this->lastResponseBody, true);
+        $data = Arrays::getValueByPath($responseArray, $path);
+
+        Assert::assertArrayNotHasKey($field, $data);
     }
 
 }
