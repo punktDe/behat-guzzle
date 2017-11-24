@@ -114,7 +114,7 @@ class GuzzleTestingContext implements Context
     }
 
     /**
-     * @then the result does not contain a field :field in the path :path
+     * @Then the result does not contain a field :field in the path :path
      *
      * @param string $field
      * @param string $path
