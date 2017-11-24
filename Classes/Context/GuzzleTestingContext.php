@@ -110,7 +110,7 @@ class GuzzleTestingContext implements Context
     public function theResultIsValidJson()
     {
         $data = json_decode($this->lastResponseBody, true);
-        Assert::assertNotFalse($data, 'API did not return a valid JSON-String.');
+        Assert::assertNotNull($data, 'API did not return a valid JSON-String.');
     }
 
     /**
