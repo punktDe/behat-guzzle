@@ -1,10 +1,5 @@
 <?php
-
-namespace PunktDe\Testing\Api\Context;
-
-/*
- * This file is part of the PunktDe.Testing.Api package.
- */
+namespace PunktDe\Behat\Guzzle\Context;
 
 use Behat\Behat\Context\Context;
 use Behat\Gherkin\Node\TableNode;
