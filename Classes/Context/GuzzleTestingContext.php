@@ -1,5 +1,11 @@
 <?php
+
 namespace PunktDe\Behat\Guzzle\Context;
+
+/*
+ *  (c) 2017 punkt.de GmbH - Karlsruhe, Germany - http://punkt.de
+ *  All rights reserved.
+ */
 
 use Behat\Behat\Context\Context;
 use Behat\Gherkin\Node\TableNode;
@@ -11,6 +17,7 @@ use Neos\Flow\Http\Client\CurlEngineException;
 use Neos\Utility\Arrays;
 use Neos\Utility\Files;
 use PHPUnit\Framework\Assert;
+use PunktDe\Behat\Guzzle\Assertion\JsonAssertion;
 
 class GuzzleTestingContext implements Context
 {
@@ -65,7 +72,7 @@ class GuzzleTestingContext implements Context
     }
 
     /**
-     * @When /^I do a :method request on "([^"]+)"(?: with parameters)?$/
+     * @When /^I do a ([^"]+) request on "([^"]+)"(?: with parameters)?$/
      */
     public function iDoARequestOnWithParameters(string $method, string $url, TableNode $parameters = null)
     {
@@ -74,22 +81,22 @@ class GuzzleTestingContext implements Context
         $requestParameters = [];
 
         if ($parameters !== null) {
-            foreach ($parameters->getRowsHash() as $k => $v) {
-                $requestParameters = Arrays::setValueByPath($requestParameters, $k, $v);
+            foreach ($parameters->getRowsHash() as $key => $value) {
+                $requestParameters = Arrays::setValueByPath($requestParameters, $key, $value);
             }
         }
 
         try {
             if ($method === 'POST') {
 
-                $options['multipart'] = [];
+                $options['form_params'] = [];
 
                 foreach ($requestParameters as $name => $requestParameter) {
                     if ($this->isUploadFile($requestParameter)) {
                         $requestParameter = fopen(Files::concatenatePaths([$this->workingDirectory, substr($requestParameter, 1)]), 'r');
                     }
 
-                    $options['multipart'][] = ['name' => $name, 'contents' => $requestParameter];
+                    $options['form_params'][$name] = $requestParameter;
                 }
             } elseif ($method === 'GET') {
                 $options['query'] = $requestParameters;
@@ -104,22 +111,42 @@ class GuzzleTestingContext implements Context
     }
 
     /**
-     * @param string $requestParameter
-     * @return bool
-     * @throws \Exception
+     * @Then the api response should be :expectedText
      */
-    protected function isUploadFile($requestParameter): bool
+    public function theApiResponseShouldBe($expectedText)
     {
-        if (is_string($requestParameter) && substr($requestParameter, 0, 1) === '@') {
-            $filePath = Files::concatenatePaths([$this->workingDirectory, substr($requestParameter, 1)]);
+        $responseBody = (string)$this->lastResponse->getBody();
+        ASsert::assertEquals($responseBody, $expectedText, sprintf("The API response should be exactly \n--\n%s\n--\nbut it is: \n--\n%s\n--\n", $expectedText, $responseBody));
+    }
 
-            if (!file_exists($filePath)) {
-                throw new \Exception(sprintf('The file at path %s does not exist.', $filePath), 1471523059);
-            }
+    /**
+     * @Then the api response should be valid json
+     */
+    public function theApiResponseIsValidJson()
+    {
+        $responseBody = $this->lastResponse->getBody();
+        $data = json_decode($responseBody, true);
+        Assert::assertNotFalse($data, 'API did not return a valid JSON-String.');
+    }
 
-            return true;
-        }
-        return false;
+    /**
+     * @Then the api response should contain :expectedText
+     * @Then /^sollte (?:der|die|das) API Response folgende(?:|n) "([^"]*)" enthalten$/
+     * @Then /^sollte (?:der|die|das) API Response "([^"]+)" enthalten$/
+     */
+    public function theApiResponseShouldContain($expectedText)
+    {
+        $responseBody = (string)$this->lastResponse->getBody();
+        Assert::assertNotFalse(strstr($responseBody, $expectedText), printf("The API response should contain \n--\n%s\n--\nbut it is: \n--\n%s\n--\n", $expectedText, $responseBody));
+    }
+
+    /**
+     * @Then the api response headers should contain :expectedText
+     */
+    public function theApiResponseHeadersShouldContain($expectedText)
+    {
+        $headers = $this->convertHeadersToString($this->lastResponse->getHeaders());
+        Assert::assertNotFalse(strstr($headers, $expectedText), sprintf("The API response headers should contain %s, but it is: \n--\n%s\n--\n.", $expectedText, $headers));
     }
 
     /**
@@ -134,6 +161,22 @@ class GuzzleTestingContext implements Context
             sprintf('HTTP status code for request was "%s", should not be 4xx', $responseHttpCode));
         Assert::assertNotEquals('5', $statusClass,
             sprintf('HTTP status code for request was "%s", should not be 5xx', $responseHttpCode));
+    }
+
+    /**
+     * @Then the HTTP status code should be :statusCode
+     */
+    public function theHttpStatusCodeShouldBe($statusCode)
+    {
+        Assert::assertEquals((int)$statusCode, (int)$this->lastResponse->getStatusCode(), sprintf('The API response should return status code %s, but returned %s.', $statusCode, $this->lastResponse->getStatusCode()));
+    }
+
+    /**
+     * @Then the api response should return a JSON string with fields:
+     */
+    public function theApiResponseShouldReturnJsonStringWithFields(TableNode $table)
+    {
+        JsonAssertion::assertJsonFieldsOfResponseByTable($this->lastResponse->getBody(), $table);
     }
 
     /**
@@ -170,5 +213,38 @@ class GuzzleTestingContext implements Context
         $data = Arrays::getValueByPath($responseArray, $path);
 
         Assert::assertArrayNotHasKey($field, $data);
+    }
+
+    /**
+     * @param string $requestParameter
+     * @return bool
+     * @throws \Exception
+     */
+    protected function isUploadFile($requestParameter): bool
+    {
+        if (is_string($requestParameter) && substr($requestParameter, 0, 1) === '@') {
+            $filePath = Files::concatenatePaths([$this->workingDirectory, substr($requestParameter, 1)]);
+
+            if (!file_exists($filePath)) {
+                throw new \Exception(sprintf('The file at path %s does not exist.', $filePath), 1471523059);
+            }
+
+            return true;
+        }
+        return false;
+    }
+
+    /**
+     * @param array $headers
+     * @return string
+     */
+    protected function convertHeadersToString(array $headers): string
+    {
+        $headerString = '';
+        foreach ($headers as $headerName => $header) {
+            $headerString .= $this->lastResponse->getHeaderLine($headerName) . PHP_EOL;
+        }
+
+        return $headerString;
     }
 }
