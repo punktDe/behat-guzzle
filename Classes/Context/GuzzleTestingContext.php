@@ -189,7 +189,7 @@ class GuzzleTestingContext implements Context
     {
         $ignoreCase = strlen($ignoreCaseString) > 0;
 
-        Assert::assertNotContains($needle, $this->lastResponse->getBody(), '', $ignoreCase);
+        Assert::assertNotContains($needle, $this->lastResponse->getBody()->getContents(), '', $ignoreCase);
     }
 
     /**
