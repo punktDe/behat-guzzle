@@ -18,6 +18,7 @@ use Neos\Utility\Arrays;
 use Neos\Utility\Files;
 use PHPUnit\Framework\Assert;
 use PunktDe\Behat\Guzzle\Assertion\JsonAssertion;
+use PunktDe\Import\Exception;
 
 class GuzzleTestingContext implements Context
 {
@@ -89,15 +90,36 @@ class GuzzleTestingContext implements Context
         try {
             if ($method === 'POST') {
 
-                $options['form_params'] = [];
+                $payload = [];
+                $transferMode = 'form_params';
 
                 foreach ($requestParameters as $name => $requestParameter) {
                     if ($this->isUploadFile($requestParameter)) {
-                        $requestParameter = fopen(Files::concatenatePaths([$this->workingDirectory, substr($requestParameter, 1)]), 'r');
+                        $transferMode = 'multipart';
+
+                        $filePath = Files::concatenatePaths([$this->workingDirectory, substr($requestParameter, 1)]);
+                        $requestParameter = fopen($filePath, 'r');
+
+                        if($requestParameter === false) {
+                            throw new \Exception('Unable to open file pointer to file '. $filePath, 1516221705);
+                        }
                     }
 
-                    $options['form_params'][$name] = $requestParameter;
+                    $payload[$name] = $requestParameter;
                 }
+
+                if($transferMode === 'multipart') {
+                    foreach ($payload as $entryName => $payloadData) {
+                        $options[$transferMode][] = [
+                            'name' => $entryName,
+                            'contents' => $payloadData
+                        ];
+                    }
+                } else {
+                    $options[$transferMode] = $payload;
+                }
+
+
             } elseif ($method === 'GET') {
                 $options['query'] = $requestParameters;
             }
@@ -136,8 +158,8 @@ class GuzzleTestingContext implements Context
      */
     public function theApiResponseShouldContain($expectedText)
     {
-        $responseBody = (string)$this->lastResponse->getBody();
-        Assert::assertNotFalse(strstr($responseBody, $expectedText), printf("The API response should contain \n--\n%s\n--\nbut it is: \n--\n%s\n--\n", $expectedText, $responseBody));
+        $responseBody = (string) $this->lastResponse->getBody()->getContents();
+        Assert::assertNotFalse(strstr($responseBody, $expectedText), sprintf("The API response should contain \n--\n%s\n--\nbut it is: \n--\n%s\n--\n", $expectedText, $responseBody));
     }
 
     /**
