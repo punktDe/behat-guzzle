@@ -264,7 +264,7 @@ class GuzzleTestingContext implements Context
     {
         $headerString = '';
         foreach ($headers as $headerName => $header) {
-            $headerString .= $this->lastResponse->getHeaderLine($headerName) . PHP_EOL;
+            $headerString .= $headerName . ': ' .  $this->lastResponse->getHeaderLine($headerName) . PHP_EOL;
         }
 
         return $headerString;
