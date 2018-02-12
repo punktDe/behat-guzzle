@@ -3,7 +3,7 @@
     "description": "punkt.de package for testing with guzzle and behat",
     "require": {
         "guzzlehttp/guzzle": "^6.3",
-        "behat/behat": "^3.4"
+        "behat/behat": "^3.3"
     },
     "autoload": {
         "psr-4": {
