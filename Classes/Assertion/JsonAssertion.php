@@ -8,29 +8,45 @@ namespace PunktDe\Behat\Guzzle\Assertion;
 
 use Behat\Gherkin\Node\TableNode;
 use PHPUnit\Framework\Assert as PhpUnitAssert;
+use Neos\Utility\Arrays;
 
 class JsonAssertion
 {
     /**
      * @param string $responseBody
      * @param TableNode $table
+     * @param bool $strict
      * @return void
      * @throws \Exception
      */
-    public static function assertJsonFieldsOfResponseByTable(string $responseBody, TableNode $table)
+    public static function assertJsonFieldsOfResponseByTable(string $responseBody, TableNode $table, $strict = false)
     {
         $data = json_decode($responseBody, true);
 
         if ($data === null) {
-            throw new \Exception("The response could not be parsed to JSON: \n" . $body, 1432278325);
+            throw new \Exception("The response could not be parsed to JSON: \n" . $responseBody, 1432278325);
         }
 
-        foreach ($table->getRowsHash() as $key => $value) {
-            try {
-                PhpUnitAssert::assertEquals(self::convertBooleanStringsToRealBooleans($value), self::getArrayContentByArrayAndNamespace($data, $key));
-            } catch (\PHPUnit_Framework_ExpectationFailedException $exception) {
-                $message = sprintf("\n%s\n\nThe API response should contain element '%s' with value '%s'\n--\nbut it is: \n--\n%s\n--\n", $exception->getMessage(), $key, $value, $body);
-                throw new \Exception($message, 1407864528);
+        $rowHash = $table->getRowsHash();
+
+        if ($strict === true) {
+            $compareArray = [];
+
+            foreach ($rowHash as $key => $value) {
+                $compareArray = Arrays::setValueByPath($compareArray, $key, $value);
+            }
+
+            PhpUnitAssert::assertEquals($compareArray, $data);
+        } else {
+            foreach ($rowHash as $key => $value) {
+                try {
+                    PhpUnitAssert::assertEquals(self::convertBooleanStringsToRealBooleans($value),
+                        self::getArrayContentByArrayAndNamespace($data, $key));
+                } catch (\PHPUnit_Framework_ExpectationFailedException $exception) {
+                    $message = sprintf("\n%s\n\nThe API response should contain element '%s' with value '%s'\n--\nbut it is: \n--\n%s\n--\n",
+                        $exception->getMessage(), $key, $value, $responseBody);
+                    throw new \Exception($message, 1407864528);
+                }
             }
         }
     }

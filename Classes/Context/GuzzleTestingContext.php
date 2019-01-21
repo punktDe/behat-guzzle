@@ -143,6 +143,7 @@ class GuzzleTestingContext implements Context
 
     /**
      * @Then the api response should be valid json
+     * @Then the result should be valid json
      */
     public function theApiResponseIsValidJson()
     {
@@ -194,11 +195,13 @@ class GuzzleTestingContext implements Context
     }
 
     /**
-     * @Then the api response should return a JSON string with fields:
+     * @Then /^the api response should(?P<strictMode>(?: exactly))? return a JSON string with fields:/
      */
-    public function theApiResponseShouldReturnJsonStringWithFields(TableNode $table)
+    public function theApiResponseShouldReturnJsonStringWithFields(TableNode $table, $strictMode = '')
     {
-        JsonAssertion::assertJsonFieldsOfResponseByTable($this->lastResponse->getBody(), $table);
+        $strict = strlen($strictMode) > 0;
+
+        JsonAssertion::assertJsonFieldsOfResponseByTable((string)$this->lastResponse->getBody(), $table, $strict);
     }
 
     /**
@@ -212,15 +215,6 @@ class GuzzleTestingContext implements Context
         $ignoreCase = strlen($ignoreCaseString) > 0;
 
         Assert::assertNotContains($needle, $this->lastResponse->getBody()->getContents(), '', $ignoreCase);
-    }
-
-    /**
-     * @Then the result should be valid json
-     */
-    public function theResultIsValidJson()
-    {
-        $data = json_decode($this->lastResponse->getBody(), true);
-        Assert::assertNotNull($data, 'API did not return a valid JSON-String.');
     }
 
     /**
