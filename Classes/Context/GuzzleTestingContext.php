@@ -11,6 +11,8 @@ use Behat\Behat\Context\Context;
 use Behat\Gherkin\Node\TableNode;
 use Behat\Testwork\Suite\Exception\SuiteConfigurationException;
 use GuzzleHttp\Client;
+use GuzzleHttp\Cookie\CookieJar;
+use GuzzleHttp\Cookie\SetCookie;
 use GuzzleHttp\Exception\BadResponseException;
 use GuzzleHttp\Psr7\Response;
 use Neos\Flow\Http\Client\CurlEngineException;
@@ -263,4 +265,82 @@ class GuzzleTestingContext implements Context
 
         return $headerString;
     }
+
+    /**
+     * @When the api downloads the file :url to :targetPath
+     */
+    public function theApiDownloadsAFile($url, $targetPath)
+    {
+        $fileHandle = fopen(
+            Files::concatenatePaths([$this->workingDirectory, $targetPath]),
+            'w'
+        );
+
+        $contentForFile = '';
+        try {
+            $this->lastResponse = $this->client->request('GET', $url);
+            $contentForFile = (string)$this->lastResponse->getBody();
+
+        } catch (BadResponseException $serverException) {
+            // even if an HTTP 5xx/4xx error occurs, we record the response.
+            $this->lastResponse = $serverException->getResponse();
+        }
+
+        fwrite($fileHandle, $contentForFile);
+
+        fclose($fileHandle);
+    }
+
+    /**
+     * @Given cookie :cookieName is set to:
+     * @Given cookie :cookieName is set to :value
+     */
+    public function cookieIsSet($cookieName, $value = null, TableNode $table = null)
+    {
+        $defaults = [
+            'name' => $cookieName,
+            'value' => $value,
+            'domain' => $this->domain
+        ];
+        $data = ($table !== null ? array_merge($defaults, $table->getRowsHash()) : $defaults);
+
+        $cookie = new SetCookie($data);
+
+        $cookieJar = new CookieJar(true);
+        $cookieJar->setCookie($cookie);
+    }
+
+    /**
+     * @Then the api response header should not contain header :header
+     */
+    public function theApiResponseHeaderShouldNotContainHeader($header)
+    {
+        $lastHeader = $this->convertHeadersToString($this->lastResponse->getHeaders());
+        Assert::assertFalse(strstr($lastHeader, $header), sprintf("The API response header should not contain header %s, but it does.", $header));
+    }
+
+    /**
+     * @Then the api response header value :headerValue should match the regex :pattern
+     */
+    public function isRegexContainedInApiResponseHeader($headerValue, $pattern)
+    {
+        $header = $this->getHeaderByName($headerValue);
+        if (preg_match($pattern, $header) !== 1) {
+            throw new \Exception('The pattern "' . $pattern . '" is not contained in the value of Response Header ' . $headerValue);
+        }
+    }
+
+    /**
+     * @param string $headerName
+     * @throws \Exception
+     */
+    protected function getHeaderByName($headerName)
+    {
+        $headerName = strtolower($headerName);
+        if ($this->lastResponse->hasHeader($headerName)) {
+            return $header = $this->lastResponse->getHeader($headerName);
+        }
+        throw new \Exception("No cookie header found in response.", 1421318511);
+    }
+
 }
