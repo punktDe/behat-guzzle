@@ -48,13 +48,18 @@ class GuzzleTestingContext implements Context
     protected $httpError = '';
 
     /**
+     * @var string
+     */
+    protected $domain;
+
+    /**
      * @param string $baseUrl
      * @param string $workingDirectory
      */
     public function __construct(string $baseUrl, string $workingDirectory = '/tmp/')
     {
         $this->baseUrl = $baseUrl;
-
+        $this->domain = parse_url($this->baseUrl, PHP_URL_HOST);
         $this->workingDirectory = realpath($workingDirectory);
         if (!is_dir($workingDirectory)) {
             throw new SuiteConfigurationException(sprintf('The working directory %s was not found.', $workingDirectory), 1432736667);
