@@ -15,12 +15,10 @@ use GuzzleHttp\Cookie\CookieJar;
 use GuzzleHttp\Cookie\SetCookie;
 use GuzzleHttp\Exception\BadResponseException;
 use GuzzleHttp\Psr7\Response;
-use Neos\Flow\Http\Client\CurlEngineException;
 use Neos\Utility\Arrays;
 use Neos\Utility\Files;
 use PHPUnit\Framework\Assert;
 use PunktDe\Behat\Guzzle\Assertion\JsonAssertion;
-use PunktDe\Import\Exception;
 
 class GuzzleTestingContext implements Context
 {
@@ -43,6 +41,11 @@ class GuzzleTestingContext implements Context
      * @var string
      */
     protected $workingDirectory;
+
+    /**
+     * @var string
+     */
+    protected $httpError = '';
 
     /**
      * @param string $baseUrl
@@ -76,6 +79,11 @@ class GuzzleTestingContext implements Context
 
     /**
      * @When /^I do a ([^"]+) request on "([^"]+)"(?: with parameters)?$/
+     *
+     * @param string $method
+     * @param string $url
+     * @param TableNode|null $parameters
+     * @throws \GuzzleHttp\Exception\GuzzleException
      */
     public function iDoARequestOnWithParameters(string $method, string $url, TableNode $parameters = null)
     {
@@ -102,15 +110,15 @@ class GuzzleTestingContext implements Context
                         $filePath = Files::concatenatePaths([$this->workingDirectory, substr($requestParameter, 1)]);
                         $requestParameter = fopen($filePath, 'r');
 
-                        if($requestParameter === false) {
-                            throw new \Exception('Unable to open file pointer to file '. $filePath, 1516221705);
+                        if ($requestParameter === false) {
+                            throw new \Exception('Unable to open file pointer to file ' . $filePath, 1516221705);
                         }
                     }
 
                     $payload[$name] = $requestParameter;
                 }
 
-                if($transferMode === 'multipart') {
+                if ($transferMode === 'multipart') {
                     foreach ($payload as $entryName => $payloadData) {
                         $options[$transferMode][] = [
                             'name' => $entryName,
@@ -128,7 +136,9 @@ class GuzzleTestingContext implements Context
 
             $this->lastResponse = $this->client->request($method, $url, $options);
 
+
         } catch (BadResponseException $serverException) {
+            $this->httpError = $serverException->getMessage();
             // even if an HTTP 5xx/4xx error occurs, we record the response.
             $this->lastResponse = $serverException->getResponse();
         }
@@ -136,11 +146,14 @@ class GuzzleTestingContext implements Context
 
     /**
      * @Then the api response should be :expectedText
+     *
+     * @param string $expectedText
      */
     public function theApiResponseShouldBe($expectedText)
     {
         $responseBody = (string)$this->lastResponse->getBody();
-        ASsert::assertEquals($responseBody, $expectedText, sprintf("The API response should be exactly \n--\n%s\n--\nbut it is: \n--\n%s\n--\n", $expectedText, $responseBody));
+        $errorMessage = sprintf("The API response should be exactly \n--\n%s\n--\nbut it is: \n--\n%s\n--\n", $expectedText, $responseBody);
+        ASsert::assertEquals($responseBody, $expectedText, $errorMessage);
     }
 
     /**
@@ -158,20 +171,26 @@ class GuzzleTestingContext implements Context
      * @Then the api response should contain :expectedText
      * @Then /^sollte (?:der|die|das) API Response folgende(?:|n) "([^"]*)" enthalten$/
      * @Then /^sollte (?:der|die|das) API Response "([^"]+)" enthalten$/
+     *
+     * @param string $expectedText
      */
     public function theApiResponseShouldContain($expectedText)
     {
-        $responseBody = (string) $this->lastResponse->getBody()->getContents();
-        Assert::assertNotFalse(strstr($responseBody, $expectedText), sprintf("The API response should contain \n--\n%s\n--\nbut it is: \n--\n%s\n--\n", $expectedText, $responseBody));
+        $responseBody = (string)$this->lastResponse->getBody()->getContents();
+        $errorMessage = sprintf("The API response should contain \n--\n%s\n--\nbut it is: \n--\n%s\n--\n", $expectedText, $responseBody);
+        Assert::assertNotFalse(strstr($responseBody, $expectedText), $errorMessage);
     }
 
     /**
      * @Then the api response headers should contain :expectedText
+     *
+     * @param string $expectedText
      */
     public function theApiResponseHeadersShouldContain($expectedText)
     {
         $headers = $this->convertHeadersToString($this->lastResponse->getHeaders());
-        Assert::assertNotFalse(strstr($headers, $expectedText), sprintf("The API response headers should contain %s, but it is: \n--\n%s\n--\n.", $expectedText, $headers));
+        $errorMessage = sprintf("The API response headers should contain %s, but it is: \n--\n%s\n--\n.", $expectedText, $headers);
+        Assert::assertNotFalse(strstr($headers, $expectedText), $errorMessage);
     }
 
     /**
@@ -182,22 +201,27 @@ class GuzzleTestingContext implements Context
         $responseHttpCode = (string)$this->lastResponse->getStatusCode();
         $statusClass = substr($responseHttpCode, 0, 1);
 
-        Assert::assertNotEquals('4', $statusClass,
-            sprintf('HTTP status code for request was "%s", should not be 4xx', $responseHttpCode));
-        Assert::assertNotEquals('5', $statusClass,
-            sprintf('HTTP status code for request was "%s", should not be 5xx', $responseHttpCode));
+        Assert::assertNotEquals('4', $statusClass, sprintf('HTTP status code for request was "%s", should not be 4xx', $responseHttpCode));
+        Assert::assertNotEquals('5', $statusClass, sprintf('HTTP status code for request was "%s", should not be 5xx', $responseHttpCode));
     }
 
     /**
      * @Then the HTTP status code should be :statusCode
+     *
+     * @param string|int $statusCode
      */
     public function theHttpStatusCodeShouldBe($statusCode)
     {
-        Assert::assertEquals((int)$statusCode, (int)$this->lastResponse->getStatusCode(), sprintf('The API response should return status code %s, but returned %s.', $statusCode, $this->lastResponse->getStatusCode()));
+        $message = sprintf('The API response should return status code %s, but returned %s.', $statusCode, $this->lastResponse->getStatusCode());
+        Assert::assertEquals((int)$statusCode, (int)$this->lastResponse->getStatusCode(), $message);
     }
 
     /**
      * @Then /^the api response should(?P<strictMode>(?: exactly))? return a JSON string with fields:/
+     *
+     * @param TableNode $table
+     * @param string $strictMode
+     * @throws \Exception
      */
     public function theApiResponseShouldReturnJsonStringWithFields(TableNode $table, $strictMode = '')
     {
@@ -207,10 +231,10 @@ class GuzzleTestingContext implements Context
     }
 
     /**
+     * @Then /^the result does not contain "(?P<needle>(?:[^"]|\\")*)"(?P<ignoreCaseString>(?: ignoring case))?$/
+     *
      * @param string $needle
      * @param string $ignoreCaseString
-     *
-     * @Then /^the result does not contain "(?P<needle>(?:[^"]|\\")*)"(?P<ignoreCaseString>(?: ignoring case))?$/
      */
     public function theResultDoesNotContain($needle, $ignoreCaseString = '')
     {
@@ -260,7 +284,7 @@ class GuzzleTestingContext implements Context
     {
         $headerString = '';
         foreach ($headers as $headerName => $header) {
-            $headerString .= $headerName . ': ' .  $this->lastResponse->getHeaderLine($headerName) . PHP_EOL;
+            $headerString .= $headerName . ': ' . $this->lastResponse->getHeaderLine($headerName) . PHP_EOL;
         }
 
         return $headerString;
@@ -268,6 +292,10 @@ class GuzzleTestingContext implements Context
 
     /**
      * @When the api downloads the file :url to :targetPath
+     *
+     * @param string $url
+     * @param string $targetPath
+     * @throws \GuzzleHttp\Exception\GuzzleException
      */
     public function theApiDownloadsAFile($url, $targetPath)
     {
@@ -294,6 +322,10 @@ class GuzzleTestingContext implements Context
     /**
      * @Given cookie :cookieName is set to:
      * @Given cookie :cookieName is set to :value
+     *
+     * @param string $cookieName
+     * @param string|null $value
+     * @param TableNode|null $table
      */
     public function cookieIsSet($cookieName, $value = null, TableNode $table = null)
     {
@@ -312,15 +344,22 @@ class GuzzleTestingContext implements Context
 
     /**
      * @Then the api response header should not contain header :header
+     *
+     * @param string $header
      */
     public function theApiResponseHeaderShouldNotContainHeader($header)
     {
         $lastHeader = $this->convertHeadersToString($this->lastResponse->getHeaders());
-        Assert::assertFalse(strstr($lastHeader, $header), sprintf("The API response header should not contain header %s, but it does.", $header));
+        $message = sprintf("The API response header should not contain header %s, but it does.", $header);
+        Assert::assertFalse(strstr($lastHeader, $header), $message);
     }
 
     /**
      * @Then the api response header value :headerValue should match the regex :pattern
+     *
+     * @param string $headerValue
+     * @param string $pattern
+     * @throws \Exception
      */
     public function isRegexContainedInApiResponseHeader($headerValue, $pattern)
     {
@@ -343,4 +382,32 @@ class GuzzleTestingContext implements Context
         throw new \Exception("No cookie header found in response.", 1421318511);
     }
 
+    /**
+     * @Then the api should return curl error :curlError
+     *
+     * @param $curlError
+     * @throws \Exception
+     */
+    public function theApiShouldReturnCurlError($curlError)
+    {
+        if ($curlError !== $this->httpError) {
+            $message = sprintf('The API should return curl error "%s", but returned "%s".', $curlError, $this->httpError);
+            throw new \Exception($message, 1427293791);
+        }
+    }
+
+    /**
+     * @Given I ignore SSL verification
+     */
+    public function iIgnoreSslVerification()
+    {
+        $this->client = new Client([
+            'base_uri' => $this->baseUrl,
+            'cookies' => true,
+            'headers' => [
+                'User-Agent' => 'FancyPunktDeGuzzleTestingAgent'
+            ],
+            'verify' => false
+        ]);
+    }
 }
