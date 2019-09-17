@@ -136,7 +136,10 @@ class GuzzleTestingContext implements Context
 
 
             } elseif ($method === 'GET') {
-                $options['query'] = $requestParameters;
+                if(!empty($requestParameters))
+                {
+                    $options['query'] = $requestParameters;
+                }
             }
 
             $this->lastResponse = $this->client->request($method, $url, $options);
