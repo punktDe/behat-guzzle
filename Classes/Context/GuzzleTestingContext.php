@@ -12,7 +12,6 @@ use Behat\Gherkin\Node\TableNode;
 use Behat\Testwork\Suite\Exception\SuiteConfigurationException;
 use GuzzleHttp\Client;
 use GuzzleHttp\Cookie\CookieJar;
-use GuzzleHttp\Cookie\SessionCookieJar;
 use GuzzleHttp\Cookie\SetCookie;
 use GuzzleHttp\Exception\BadResponseException;
 use GuzzleHttp\Psr7\Response;
@@ -52,6 +51,11 @@ class GuzzleTestingContext implements Context
      * @var string
      */
     protected $domain;
+
+    /**
+     * @var CookieJar|null
+     */
+    protected $cookiesJarForNextRequest = null;
 
     /**
      * @param string $baseUrl
@@ -143,8 +147,18 @@ class GuzzleTestingContext implements Context
                 }
             }
 
+            if(isset($this->cookiesJarForNextRequest))
+            {
+                $options['cookies'] = $this->cookiesJarForNextRequest;
+            }
+
             $this->lastResponse = $this->client->request($method, $url, $options);
 
+
+            if(isset($this->cookiesJarForNextRequest))
+            {
+                $this->cookiesJarForNextRequest = null;
+            }
 
         } catch (BadResponseException $serverException) {
             $this->httpError = $serverException->getMessage();
@@ -353,12 +367,11 @@ class GuzzleTestingContext implements Context
         $data = ($table !== null ? array_merge($defaults, $table->getRowsHash()) : $defaults);
 
         $cookieJar = $this->client->getConfig('cookies');
+
         $cookie = new SetCookie($data);
         $cookieJar->setCookie($cookie);
 
-        $this->lastResponse = $this->client->request('GET', '/', [
-            'cookies' => $cookieJar
-        ]);
+        $this->cookiesJarForNextRequest = $cookieJar;
     }
 
     /**
