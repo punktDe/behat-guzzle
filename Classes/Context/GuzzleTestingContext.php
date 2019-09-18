@@ -12,6 +12,7 @@ use Behat\Gherkin\Node\TableNode;
 use Behat\Testwork\Suite\Exception\SuiteConfigurationException;
 use GuzzleHttp\Client;
 use GuzzleHttp\Cookie\CookieJar;
+use GuzzleHttp\Cookie\SessionCookieJar;
 use GuzzleHttp\Cookie\SetCookie;
 use GuzzleHttp\Exception\BadResponseException;
 use GuzzleHttp\Psr7\Response;
@@ -196,9 +197,16 @@ class GuzzleTestingContext implements Context
      */
     public function theApiResponseHeadersShouldContain($expectedText)
     {
+        $statusCodeMessage = '';
+        $statusCodeMessage .= (string)$this->lastResponse->getStatusCode();
+        $statusCodeMessage .= (string)$this->lastResponse->getReasonPhrase();
+
         $headers = $this->convertHeadersToString($this->lastResponse->getHeaders());
-        $errorMessage = sprintf("The API response headers should contain %s, but it is: \n--\n%s\n--\n.", $expectedText, $headers);
-        Assert::assertNotFalse(strstr($headers, $expectedText), $errorMessage);
+
+        $haystack = $statusCodeMessage . ' ' . $headers;
+
+        $errorMessage = sprintf("The API response headers should contain %s, but it is: \n--\n%s\n--\n.", $expectedText, $haystack);
+        Assert::assertNotFalse(strstr($haystack, $expectedText), $errorMessage);
     }
 
     /**
@@ -338,16 +346,19 @@ class GuzzleTestingContext implements Context
     public function cookieIsSet($cookieName, $value = null, TableNode $table = null)
     {
         $defaults = [
-            'name' => $cookieName,
-            'value' => $value,
-            'domain' => $this->domain
+            'Name' => $cookieName,
+            'Value' => trim($value),
+            'Domain' => $this->domain
         ];
         $data = ($table !== null ? array_merge($defaults, $table->getRowsHash()) : $defaults);
 
+        $cookieJar = $this->client->getConfig('cookies');
         $cookie = new SetCookie($data);
-
-        $cookieJar = new CookieJar(true);
         $cookieJar->setCookie($cookie);
+
+        $this->lastResponse = $this->client->request('GET', '/', [
+            'cookies' => $cookieJar
+        ]);
     }
 
     /**
