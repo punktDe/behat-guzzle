@@ -334,15 +334,9 @@ class GuzzleTestingContext implements Context
             'w'
         );
 
-        $contentForFile = '';
-        try {
-            $this->lastResponse = $this->client->request('GET', $url);
-            $contentForFile = (string)$this->lastResponse->getBody();
+        $this->iDoARequestOnWithParameters('GET', $url);
 
-        } catch (BadResponseException $serverException) {
-            // even if an HTTP 5xx/4xx error occurs, we record the response.
-            $this->lastResponse = $serverException->getResponse();
-        }
+        $contentForFile = (string)$this->lastResponse->getBody();
 
         fwrite($fileHandle, $contentForFile);
 
