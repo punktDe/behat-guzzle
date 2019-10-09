@@ -48,11 +48,6 @@ class GuzzleTestingContext implements Context
     protected $httpError = '';
 
     /**
-     * @var string
-     */
-    protected $domain;
-
-    /**
      * @var CookieJar|null
      */
     protected $cookiesJarForNextRequest = null;
@@ -64,7 +59,6 @@ class GuzzleTestingContext implements Context
     public function __construct(string $baseUrl, string $workingDirectory = '/tmp/')
     {
         $this->baseUrl = $baseUrl;
-        $this->domain = parse_url($this->baseUrl, PHP_URL_HOST);
         $this->workingDirectory = realpath($workingDirectory);
         if (!is_dir($workingDirectory)) {
             throw new SuiteConfigurationException(sprintf('The working directory %s was not found.', $workingDirectory), 1432736667);
@@ -175,8 +169,8 @@ class GuzzleTestingContext implements Context
     public function theApiResponseShouldBe($expectedText)
     {
         $responseBody = (string)$this->lastResponse->getBody();
-        $errorMessage = sprintf("The API response should be exactly \n--\n%s\n--\nbut it is: \n--\n%s\n--\n", $expectedText, $responseBody);
-        ASsert::assertEquals($responseBody, $expectedText, $errorMessage);
+        $errorMessage = sprintf('The API response should be exactly \n--\n%s\n--\nbut it is: \n--\n%s\n--\n', $expectedText, $responseBody);
+        Assert::assertEquals($responseBody, $expectedText, $errorMessage);
     }
 
     /**
@@ -200,7 +194,7 @@ class GuzzleTestingContext implements Context
     public function theApiResponseShouldContain($expectedText)
     {
         $responseBody = (string)$this->lastResponse->getBody()->getContents();
-        $errorMessage = sprintf("The API response should contain \n--\n%s\n--\nbut it is: \n--\n%s\n--\n", $expectedText, $responseBody);
+        $errorMessage = sprintf('The API response should contain \n--\n%s\n--\nbut it is: \n--\n%s\n--\n', $expectedText, $responseBody);
         Assert::assertNotFalse(strstr($responseBody, $expectedText), $errorMessage);
     }
 
@@ -219,7 +213,7 @@ class GuzzleTestingContext implements Context
 
         $haystack = $statusCodeMessage . ' ' . $headers;
 
-        $errorMessage = sprintf("The API response headers should contain %s, but it is: \n--\n%s\n--\n.", $expectedText, $haystack);
+        $errorMessage = sprintf('The API response headers should contain %s, but it is: \n--\n%s\n--\n.', $expectedText, $haystack);
         Assert::assertNotFalse(strstr($haystack, $expectedText), $errorMessage);
     }
 
@@ -356,7 +350,7 @@ class GuzzleTestingContext implements Context
         $defaults = [
             'Name' => $cookieName,
             'Value' => trim($value),
-            'Domain' => $this->domain
+            'Domain' => parse_url($this->baseUrl, PHP_URL_HOST)
         ];
         $data = ($table !== null ? array_merge($defaults, $table->getRowsHash()) : $defaults);
 
@@ -376,7 +370,7 @@ class GuzzleTestingContext implements Context
     public function theApiResponseHeaderShouldNotContainHeader($header)
     {
         $lastHeader = $this->convertHeadersToString($this->lastResponse->getHeaders());
-        $message = sprintf("The API response header should not contain header %s, but it does.", $header);
+        $message = sprintf('The API response header should not contain header %s, but it does.', $header);
         Assert::assertFalse(strstr($lastHeader, $header), $message);
     }
 
@@ -405,7 +399,7 @@ class GuzzleTestingContext implements Context
         if ($this->lastResponse->hasHeader($headerName)) {
             return $header = $this->lastResponse->getHeader($headerName);
         }
-        throw new \Exception("No cookie header found in response.", 1421318511);
+        throw new \Exception('No cookie header found in response.', 1421318511);
     }
 
     /**
