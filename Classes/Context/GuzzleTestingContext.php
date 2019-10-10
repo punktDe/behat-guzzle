@@ -13,7 +13,7 @@ use Behat\Testwork\Suite\Exception\SuiteConfigurationException;
 use GuzzleHttp\Client;
 use GuzzleHttp\Cookie\CookieJar;
 use GuzzleHttp\Cookie\SetCookie;
-use GuzzleHttp\Exception\BadResponseException;
+use GuzzleHttp\Exception\RequestException;
 use GuzzleHttp\Psr7\Response;
 use Neos\Utility\Arrays;
 use Neos\Utility\Files;
@@ -154,10 +154,10 @@ class GuzzleTestingContext implements Context
                 $this->cookiesJarForNextRequest = null;
             }
 
-        } catch (BadResponseException $serverException) {
-            $this->httpError = $serverException->getMessage();
+        } catch (RequestException $requestException) {
+            $this->httpError = $requestException->getMessage();
             // even if an HTTP 5xx/4xx error occurs, we record the response.
-            $this->lastResponse = $serverException->getResponse();
+            $this->lastResponse = $requestException->getResponse();
         }
     }
 
