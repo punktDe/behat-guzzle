@@ -397,7 +397,7 @@ class GuzzleTestingContext implements Context
     {
         $headerName = strtolower($headerName);
         if ($this->lastResponse->hasHeader($headerName)) {
-            return $header = $this->lastResponse->getHeader($headerName);
+            return $header = $this->lastResponse->getHeaderLine($headerName);
         }
         throw new \Exception('No cookie header found in response.', 1421318511);
     }
