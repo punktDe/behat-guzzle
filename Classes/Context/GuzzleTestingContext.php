@@ -168,7 +168,7 @@ class GuzzleTestingContext implements Context
      */
     public function theApiResponseShouldBe($expectedText)
     {
-        $responseBody = (string)$this->lastResponse->getBody();
+        $responseBody = (string)$this->getLastResponseContent();
         $errorMessage = sprintf('The API response should be exactly \n--\n%s\n--\nbut it is: \n--\n%s\n--\n', $expectedText, $responseBody);
         Assert::assertEquals($responseBody, $expectedText, $errorMessage);
     }
@@ -179,7 +179,8 @@ class GuzzleTestingContext implements Context
      */
     public function theApiResponseIsValidJson()
     {
-        $responseBody = $this->lastResponse->getBody();
+        $responseBody = $this->getLastResponseContent();
+        Assert::assertNotEmpty(trim($responseBody), 'Response body is empty');
         $data = json_decode($responseBody, true);
         Assert::assertNotFalse($data, 'API did not return a valid JSON-String.');
     }
@@ -193,7 +194,7 @@ class GuzzleTestingContext implements Context
      */
     public function theApiResponseShouldContain($expectedText)
     {
-        $responseBody = (string)$this->lastResponse->getBody()->getContents();
+        $responseBody = (string)$this->getLastResponseContent();
         $errorMessage = sprintf('The API response should contain \n--\n%s\n--\nbut it is: \n--\n%s\n--\n', $expectedText, $responseBody);
         Assert::assertNotFalse(strstr($responseBody, $expectedText), $errorMessage);
     }
@@ -250,8 +251,7 @@ class GuzzleTestingContext implements Context
     public function theApiResponseShouldReturnJsonStringWithFields(TableNode $table, $strictMode = '')
     {
         $strict = strlen($strictMode) > 0;
-
-        JsonAssertion::assertJsonFieldsOfResponseByTable((string)$this->lastResponse->getBody(), $table, $strict);
+        JsonAssertion::assertJsonFieldsOfResponseByTable((string)$this->getLastResponseContent(), $table, $strict);
     }
 
     /**
@@ -264,7 +264,7 @@ class GuzzleTestingContext implements Context
     {
         $ignoreCase = strlen($ignoreCaseString) > 0;
 
-        Assert::assertNotContains($needle, $this->lastResponse->getBody()->getContents(), '', $ignoreCase);
+        Assert::assertNotContains($needle, $this->getLastResponseContent(), '', $ignoreCase);
     }
 
     /**
@@ -275,7 +275,7 @@ class GuzzleTestingContext implements Context
      */
     public function theResultDoesNotContainFieldInPath($field, $path)
     {
-        $responseArray = json_decode($this->lastResponse->getBody(), true);
+        $responseArray = json_decode($this->getLastResponseContent(), true);
         $data = Arrays::getValueByPath($responseArray, $path);
 
         Assert::assertArrayNotHasKey($field, $data);
@@ -330,7 +330,7 @@ class GuzzleTestingContext implements Context
 
         $this->iDoARequestOnWithParameters('GET', $url);
 
-        $contentForFile = (string)$this->lastResponse->getBody();
+        $contentForFile = (string)$this->getLastResponseContent();
 
         fwrite($fileHandle, $contentForFile);
 
@@ -429,5 +429,14 @@ class GuzzleTestingContext implements Context
             ],
             'verify' => false
         ]);
+    }
+
+    /**
+     * @return string
+     */
+    protected function getLastResponseContent(): string
+    {
+        $this->lastResponse->getBody()->rewind();
+        return $this->lastResponse->getBody()->getContents();
     }
 }

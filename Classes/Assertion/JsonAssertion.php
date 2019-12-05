@@ -22,7 +22,6 @@ class JsonAssertion
     public static function assertJsonFieldsOfResponseByTable(string $responseBody, TableNode $table, $strict = false)
     {
         $data = json_decode($responseBody, true);
-
         if ($data === null) {
             throw new \Exception("The response could not be parsed to JSON: \n" . $responseBody, 1432278325);
         }
@@ -40,8 +39,7 @@ class JsonAssertion
         } else {
             foreach ($rowHash as $key => $value) {
                 try {
-                    PhpUnitAssert::assertEquals(self::convertBooleanStringsToRealBooleans($value),
-                        self::getArrayContentByArrayAndNamespace($data, $key));
+                    PhpUnitAssert::assertEquals(self::convertBooleanStringsToRealBooleans($value), self::getArrayContentByArrayAndNamespace($data, $key));
                 } catch (\PHPUnit_Framework_ExpectationFailedException $exception) {
                     $message = sprintf("\n%s\n\nThe API response should contain element '%s' with value '%s'\n--\nbut it is: \n--\n%s\n--\n",
                         $exception->getMessage(), $key, $value, $responseBody);
