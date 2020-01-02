@@ -432,6 +432,15 @@ class GuzzleTestingContext implements Context
     }
 
     /**
+     * @Given the content starts with :searchText
+     */
+    public function contentStartsWith(string $searchText): void
+    {
+        $content = $this->getLastResponseContent();
+        Assert::assertStringStartsWith($searchText, $content);
+    }
+
+    /**
      * @return string
      */
     protected function getLastResponseContent(): string
