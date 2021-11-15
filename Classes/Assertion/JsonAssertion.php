@@ -32,7 +32,7 @@ class JsonAssertion
             $compareArray = [];
 
             foreach ($rowHash as $key => $value) {
-                $compareArray = Arrays::setValueByPath($compareArray, $key, $value);
+                $compareArray = Arrays::setValueByPath($compareArray, $key, self::convertBooleanStringsToRealBooleans($value));
             }
 
             PhpUnitAssert::assertEquals($compareArray, $data);
